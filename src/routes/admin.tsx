@@ -96,7 +96,7 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
           )}
           <Button
             type="submit"
-            className="mt-5 h-11 w-full rounded-xl bg-[var(--gradient-hero)] text-white shadow-[var(--shadow-glow)] hover:opacity-95"
+            className="mt-5 h-11 w-full rounded-xl bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow)] hover:opacity-95"
           >
             Sign in
           </Button>
