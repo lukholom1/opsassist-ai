@@ -129,7 +129,7 @@ function SubmitPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="h-12 rounded-xl bg-[var(--gradient-hero)] text-base font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-95 disabled:opacity-60"
+                className="h-12 rounded-xl bg-[image:var(--gradient-hero)] text-base font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-95 disabled:opacity-60"
               >
                 {loading ? (
                   <>
