@@ -389,3 +389,37 @@ function PriorityPill({ value }: { value: string }) {
     </span>
   );
 }
+
+// Inline status selector for the admin table — color-coded with optimistic save indicator.
+function StatusSelector({
+  value,
+  saving,
+  onChange,
+}: {
+  value: TicketStatus;
+  saving: boolean;
+  onChange: (next: TicketStatus) => void;
+}) {
+  const styles: Record<TicketStatus, string> = {
+    Open: "bg-warning/10 text-warning ring-warning/20",
+    "In Progress": "bg-soft-blue/10 text-soft-blue ring-soft-blue/20",
+    Resolved: "bg-success/10 text-success ring-success/20",
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <Select value={value} onValueChange={(v) => onChange(v as TicketStatus)}>
+        <SelectTrigger
+          className={`h-8 w-[140px] rounded-full border-0 px-3 text-xs font-medium ring-1 ring-inset ${styles[value]}`}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="Open">Open</SelectItem>
+          <SelectItem value="In Progress">In Progress</SelectItem>
+          <SelectItem value="Resolved">Resolved</SelectItem>
+        </SelectContent>
+      </Select>
+      {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+    </div>
+  );
+}
