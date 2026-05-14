@@ -111,3 +111,22 @@ export const listTickets = createServerFn({ method: "GET" }).handler(async () =>
   if (error) throw new Error(error.message);
   return { tickets: data ?? [] };
 });
+
+// Update a ticket's progress status (admin only — gated by password in UI).
+const STATUSES = ["Open", "In Progress", "Resolved"] as const;
+const UpdateStatusSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(STATUSES),
+});
+
+export const updateTicketStatus = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => UpdateStatusSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { error } = await supabaseAdmin
+      .from("tickets")
+      .update({ status: data.status })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { id: data.id, status: data.status };
+  });
+

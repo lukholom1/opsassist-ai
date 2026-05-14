@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { listTickets } from "@/lib/tickets.functions";
+import { listTickets, updateTicketStatus } from "@/lib/tickets.functions";
 import { Logo } from "@/components/Logo";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
+type TicketStatus = "Open" | "In Progress" | "Resolved";
 type Ticket = {
   id: string;
   user_name: string;
@@ -32,6 +33,7 @@ type Ticket = {
   details: string;
   category: string;
   priority: string;
+  status: TicketStatus;
   created_at: string;
 };
 
@@ -118,11 +120,14 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
   const fetchTickets = useServerFn(listTickets);
+  const updateStatus = useServerFn(updateTicketStatus);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("all");
   const [priority, setPriority] = useState("all");
+  const [status, setStatus] = useState("all");
   const [query, setQuery] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTickets()
@@ -130,10 +135,26 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       .finally(() => setLoading(false));
   }, [fetchTickets]);
 
+  // Optimistically update a ticket's status, then sync to the server.
+  async function changeStatus(id: string, next: TicketStatus) {
+    const prev = tickets;
+    setTickets((ts) => ts.map((t) => (t.id === id ? { ...t, status: next } : t)));
+    setSavingId(id);
+    try {
+      await updateStatus({ data: { id, status: next } });
+    } catch (e) {
+      console.error(e);
+      setTickets(prev); // rollback on failure
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
       if (category !== "all" && t.category !== category) return false;
       if (priority !== "all" && t.priority !== priority) return false;
+      if (status !== "all" && t.status !== status) return false;
       if (query) {
         const q = query.toLowerCase();
         if (
@@ -145,16 +166,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       }
       return true;
     });
-  }, [tickets, category, priority, query]);
+  }, [tickets, category, priority, status, query]);
 
   const stats = useMemo(() => {
     const total = tickets.length;
     const high = tickets.filter((t) => t.priority === "High").length;
-    const open = tickets.filter((t) => t.priority !== "Low").length;
-    const today = tickets.filter(
-      (t) => new Date(t.created_at).toDateString() === new Date().toDateString(),
-    ).length;
-    return { total, high, open, today };
+    const inProgress = tickets.filter((t) => t.status === "In Progress").length;
+    const resolved = tickets.filter((t) => t.status === "Resolved").length;
+    return { total, high, inProgress, resolved };
   }, [tickets]);
 
   function logout() {
@@ -195,8 +214,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Total tickets" value={stats.total} accent="navy" />
           <StatCard label="High priority" value={stats.high} accent="red" />
-          <StatCard label="Active" value={stats.open} accent="purple" />
-          <StatCard label="Today" value={stats.today} accent="blue" />
+          <StatCard label="In progress" value={stats.inProgress} accent="purple" />
+          <StatCard label="Resolved" value={stats.resolved} accent="blue" />
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3">
@@ -235,6 +254,17 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               <SelectItem value="Low">Low</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="Open">Open</SelectItem>
+              <SelectItem value="In Progress">In Progress</SelectItem>
+              <SelectItem value="Resolved">Resolved</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-soft)]">
@@ -256,6 +286,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                     <th className="px-4 py-3 font-medium">Ticket</th>
                     <th className="px-4 py-3 font-medium">Category</th>
                     <th className="px-4 py-3 font-medium">Priority</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Created</th>
                   </tr>
                 </thead>
@@ -277,6 +308,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                       </td>
                       <td className="px-4 py-4">
                         <PriorityPill value={t.priority} />
+                      </td>
+                      <td className="px-4 py-4">
+                        <StatusSelector
+                          value={t.status}
+                          saving={savingId === t.id}
+                          onChange={(next) => changeStatus(t.id, next)}
+                        />
                       </td>
                       <td className="px-4 py-4 text-xs text-muted-foreground">
                         {new Date(t.created_at).toLocaleString()}
@@ -349,5 +387,39 @@ function PriorityPill({ value }: { value: string }) {
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {value}
     </span>
+  );
+}
+
+// Inline status selector for the admin table — color-coded with optimistic save indicator.
+function StatusSelector({
+  value,
+  saving,
+  onChange,
+}: {
+  value: TicketStatus;
+  saving: boolean;
+  onChange: (next: TicketStatus) => void;
+}) {
+  const styles: Record<TicketStatus, string> = {
+    Open: "bg-warning/10 text-warning ring-warning/20",
+    "In Progress": "bg-soft-blue/10 text-soft-blue ring-soft-blue/20",
+    Resolved: "bg-success/10 text-success ring-success/20",
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <Select value={value} onValueChange={(v) => onChange(v as TicketStatus)}>
+        <SelectTrigger
+          className={`h-8 w-[140px] rounded-full border-0 px-3 text-xs font-medium ring-1 ring-inset ${styles[value]}`}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="Open">Open</SelectItem>
+          <SelectItem value="In Progress">In Progress</SelectItem>
+          <SelectItem value="Resolved">Resolved</SelectItem>
+        </SelectContent>
+      </Select>
+      {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+    </div>
   );
 }
