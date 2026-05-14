@@ -120,11 +120,14 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
   const fetchTickets = useServerFn(listTickets);
+  const updateStatus = useServerFn(updateTicketStatus);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("all");
   const [priority, setPriority] = useState("all");
+  const [status, setStatus] = useState("all");
   const [query, setQuery] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTickets()
@@ -132,10 +135,26 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       .finally(() => setLoading(false));
   }, [fetchTickets]);
 
+  // Optimistically update a ticket's status, then sync to the server.
+  async function changeStatus(id: string, next: TicketStatus) {
+    const prev = tickets;
+    setTickets((ts) => ts.map((t) => (t.id === id ? { ...t, status: next } : t)));
+    setSavingId(id);
+    try {
+      await updateStatus({ data: { id, status: next } });
+    } catch (e) {
+      console.error(e);
+      setTickets(prev); // rollback on failure
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
       if (category !== "all" && t.category !== category) return false;
       if (priority !== "all" && t.priority !== priority) return false;
+      if (status !== "all" && t.status !== status) return false;
       if (query) {
         const q = query.toLowerCase();
         if (
@@ -147,16 +166,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       }
       return true;
     });
-  }, [tickets, category, priority, query]);
+  }, [tickets, category, priority, status, query]);
 
   const stats = useMemo(() => {
     const total = tickets.length;
     const high = tickets.filter((t) => t.priority === "High").length;
-    const open = tickets.filter((t) => t.priority !== "Low").length;
-    const today = tickets.filter(
-      (t) => new Date(t.created_at).toDateString() === new Date().toDateString(),
-    ).length;
-    return { total, high, open, today };
+    const inProgress = tickets.filter((t) => t.status === "In Progress").length;
+    const resolved = tickets.filter((t) => t.status === "Resolved").length;
+    return { total, high, inProgress, resolved };
   }, [tickets]);
 
   function logout() {
