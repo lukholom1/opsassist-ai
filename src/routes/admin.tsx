@@ -214,8 +214,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Total tickets" value={stats.total} accent="navy" />
           <StatCard label="High priority" value={stats.high} accent="red" />
-          <StatCard label="Active" value={stats.open} accent="purple" />
-          <StatCard label="Today" value={stats.today} accent="blue" />
+          <StatCard label="In progress" value={stats.inProgress} accent="purple" />
+          <StatCard label="Resolved" value={stats.resolved} accent="blue" />
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3">
