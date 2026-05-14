@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useServerFn } from "@tanstack/react-router";
-import { useServerFn as useFn } from "@tanstack/react-start";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { submitTicket } from "@/lib/tickets.functions";
 import { Logo } from "@/components/Logo";
