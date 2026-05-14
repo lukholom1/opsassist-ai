@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { listTickets } from "@/lib/tickets.functions";
+import { listTickets, updateTicketStatus } from "@/lib/tickets.functions";
 import { Logo } from "@/components/Logo";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
