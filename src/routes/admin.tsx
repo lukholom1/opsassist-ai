@@ -448,3 +448,163 @@ function StatusSelector({
     </div>
   );
 }
+
+// AI Response Generator dialog — pick tone, generate, edit, and copy.
+type Tone = "formal" | "friendly" | "urgent";
+
+function ResponseDialog({ ticket, onClose }: { ticket: Ticket | null; onClose: () => void }) {
+  const generate = useServerFn(generateTicketResponse);
+  const [tone, setTone] = useState<Tone>("formal");
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [source, setSource] = useState<"ai" | "template" | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset state and auto-generate when a new ticket is opened.
+  useEffect(() => {
+    if (!ticket) return;
+    setTone("formal");
+    setText("");
+    setSource(null);
+    setError(null);
+    void runGenerate(ticket, "formal");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticket?.id]);
+
+  async function runGenerate(t: Ticket, nextTone: Tone) {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await generate({
+        data: {
+          ticket_id: t.id,
+          user_name: t.user_name,
+          title: t.title,
+          details: t.details,
+          category: t.category,
+          priority: t.priority,
+          tone: nextTone,
+        },
+      });
+      setText(res.response);
+      setSource(res.source);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to generate response");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copyToClipboard() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore
+    }
+  }
+
+  const open = ticket !== null;
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles size={18} className="text-purple-accent" />
+            AI Response Generator
+          </DialogTitle>
+          <DialogDescription>
+            {ticket ? (
+              <>Drafting a reply to <span className="font-medium text-foreground">{ticket.user_name}</span> · {ticket.category} · {ticket.priority} priority</>
+            ) : null}
+          </DialogDescription>
+        </DialogHeader>
+
+        {ticket && (
+          <div className="grid gap-4">
+            <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+              <div className="font-medium text-foreground">{ticket.title}</div>
+              <div className="mt-1 line-clamp-3 text-xs text-muted-foreground">{ticket.details}</div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-sm">Tone</Label>
+              <div className="flex flex-wrap gap-2">
+                {(["formal", "friendly", "urgent"] as Tone[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setTone(t);
+                      void runGenerate(ticket, t);
+                    }}
+                    disabled={loading}
+                    className={`rounded-full px-4 py-1.5 text-xs font-medium capitalize ring-1 ring-inset transition ${
+                      tone === t
+                        ? "bg-[image:var(--gradient-hero)] text-white ring-transparent shadow-[var(--shadow-glow)]"
+                        : "bg-card text-muted-foreground ring-border hover:text-foreground"
+                    } disabled:opacity-50`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Generated reply</Label>
+                {source && !loading && (
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {source === "ai" ? "AI-generated" : "Template fallback"}
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <Textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  className="min-h-[200px] resize-none font-medium leading-relaxed"
+                  placeholder="Generating..."
+                />
+                {loading && (
+                  <div className="absolute inset-0 grid place-items-center rounded-md bg-card/70 backdrop-blur-sm">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Drafting reply...
+                    </div>
+                  </div>
+                )}
+              </div>
+              {error && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => runGenerate(ticket, tone)}
+                disabled={loading}
+              >
+                <RefreshCw size={14} className="mr-1.5" /> Regenerate
+              </Button>
+              <Button
+                onClick={copyToClipboard}
+                disabled={loading || !text}
+                className="bg-[image:var(--gradient-hero)] text-white shadow-[var(--shadow-glow)] hover:opacity-95"
+              >
+                {copied ? (
+                  <><Check size={14} className="mr-1.5" /> Copied</>
+                ) : (
+                  <><Copy size={14} className="mr-1.5" /> Copy reply</>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
