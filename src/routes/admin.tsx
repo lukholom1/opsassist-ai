@@ -1,12 +1,20 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { listTickets, updateTicketStatus } from "@/lib/tickets.functions";
+import { listTickets, updateTicketStatus, generateTicketResponse } from "@/lib/tickets.functions";
 import { Logo } from "@/components/Logo";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -14,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Lock, LogOut, Search, Inbox, Loader2 } from "lucide-react";
+import { Lock, LogOut, Search, Inbox, Loader2, Sparkles, Copy, Check, RefreshCw } from "lucide-react";
 
 // Default admin password — also documented in README.md
 const ADMIN_PASSWORD = "OpsAdmin@2026";
