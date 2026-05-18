@@ -297,6 +297,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                     <th className="px-4 py-3 font-medium">Priority</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Created</th>
+                    <th className="px-4 py-3 font-medium text-right">Reply</th>
                   </tr>
                 </thead>
                 <tbody>
