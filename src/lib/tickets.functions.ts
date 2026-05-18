@@ -209,7 +209,7 @@ export const updateTicketStatus = createServerFn({ method: "POST" })
         .single();
       if (t?.assigned_to !== context.userId) throw new Error("Not your ticket.");
     }
-    const patch: Record<string, unknown> = { status: data.status };
+    const patch: { status: typeof data.status; resolved_at?: string } = { status: data.status };
     if (data.status === "Resolved") patch.resolved_at = new Date().toISOString();
     const { error } = await supabaseAdmin.from("tickets").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
